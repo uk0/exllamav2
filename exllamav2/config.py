@@ -516,6 +516,7 @@ class ExLlamaV2Config:
             self.vision_num_channels = 3
             self.vision_spatial_merge_size = 1
             self.vision_max_size = 16384
+            self.vision_window_size = None
 
         elif self.vision_model_type in ["qwen2", "qwen2.5"]:
             image_processor_type = read(read_prep_config, str, ["image_processor_type"], no_default)
