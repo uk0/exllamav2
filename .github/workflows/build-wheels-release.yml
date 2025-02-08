@@ -232,8 +232,8 @@ jobs:
           activate-environment: "exllama"
           python-version: ${{ matrix.pyver }}
 #          miniforge-variant: Mambaforge
-#          miniforge-version: latest
-          use-mamba: true
+          miniforge-version: latest
+#          use-mamba: true
           add-pip-as-python-dependency: true
           auto-activate-base: false
 
@@ -300,7 +300,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: matrix.artname == 'wheel'
         with:
-          name: 'wheel'
+          name: wheel-${{ matrix.os }}-py${{ matrix.pyver }}-cuda${{ matrix.cuda }}-torch${{ matrix.torch }}
           path: ./dist/*
 
       - uses: actions/upload-artifact@v4
