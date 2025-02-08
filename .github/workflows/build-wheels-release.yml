@@ -263,7 +263,7 @@ jobs:
           
           python -m ensurepip --upgrade
           python -m pip install torch==${{ matrix.torch }} --index-url https://download.pytorch.org/whl/cu$cudaVersionPytorch
-          python -m pip install --upgrade setuptools==69.5.1 build wheel safetensors sentencepiece ninja
+          python -m pip install --upgrade setuptools==69.5.1 build wheel safetensors sentencepiece ninja numpy
 
           # --- Build wheel
                   
