@@ -882,8 +882,10 @@ class ExLlamaV2Attention(ExLlamaV2Module):
                 k_states = k_states[:, :, -self.sliding_window:, :]
                 v_states = v_states[:, :, -self.sliding_window:, :]
 
-            if self.layer_idx in attn_params.block_diag_layers:
+            if self.layer_idx in attn_params.block_diag_layers or causal:
                 attn_mask_lr = attn_params.get_block_diag_mask(q_states.device)
+            elif not causal:
+                attn_mask_lr = None
             elif attn_params.is_causal():
                 attn_mask_lr = causal_lower_right(q_len, k_states.shape[2])
             else:
@@ -892,7 +894,7 @@ class ExLlamaV2Attention(ExLlamaV2Module):
                 q_states,
                 k_states,
                 v_states,
-                attn_mask_lr if causal else None,
+                attn_mask_lr,
                 scale = self.scaling
             )
 
@@ -910,10 +912,12 @@ class ExLlamaV2Attention(ExLlamaV2Module):
                 attn_mask = attn_params.get_block_diag_mask(attn_weights.device)
             elif causal:
                 attn_mask = attn_params.get_attn_mask(attn_weights.device)
+            else:
+                attn_mask = None
 
             if cfg.attn_logit_softcapping:
                 ext_c.softcap_(attn_weights, cfg.attn_logit_softcapping)
-            if causal and attn_mask is not None:
+            if attn_mask is not None:
                 attn_weights = attn_weights + attn_mask
             if self.sliding_window and k_states.shape[-1] >= self.sliding_window:
                 attn_weights = attn_weights[:, :, :, -self.sliding_window:]
@@ -1109,6 +1113,12 @@ class ExLlamaV2Attention(ExLlamaV2Module):
                 offset = attn_params.rope_offsets.cpu().item()
                 pass_past_len_1 += offset
 
+        sc = attn_params.get_alt_rope_embed(self.device_idx)
+        if not sc:
+            sin, cos = constants.sin, constants.cos
+        else:
+            sin, cos = sc
+
         ext_c.q_attn_forward_1(
             self.q_handle,
             hidden_states,
@@ -1119,8 +1129,8 @@ class ExLlamaV2Attention(ExLlamaV2Module):
             q_states,
             k_states,
             v_states,
-            constants.sin,
-            constants.cos,
+            sin,
+            cos,
             pass_loras,
             pass_lora_temp
         )
