@@ -104,6 +104,7 @@ QAttn::QAttn
     int _max_seq_len,
     bool _has_residual,
     int _rope_style,
+    int _sincos_size,
     half* _q_norm,
     half* _k_norm,
     half* _post_layernorm,
@@ -132,6 +133,7 @@ QAttn::QAttn
     max_seq_len(_max_seq_len),
     has_residual(_has_residual),
     rope_style(_rope_style),
+    sincos_size(_sincos_size),
     q_norm(_q_norm),
     k_norm(_k_norm),
     post_layernorm(_post_layernorm),
@@ -305,6 +307,7 @@ void QAttn::forward_cuda_1_run
             past_len,
             past_lens,
             rope_style == ROPE_STYLE_NEOX,
+            sincos_size,
             graph,
             KernelLabels::ROPE
         );

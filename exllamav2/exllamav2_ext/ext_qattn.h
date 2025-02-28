@@ -22,6 +22,7 @@ uintptr_t make_q_attn
     int max_seq_len,
     bool has_residual,
     int rope_style,
+    int sincos_size,
     torch::Tensor q_norm,
     torch::Tensor k_norm,
     torch::Tensor post_layernorm,

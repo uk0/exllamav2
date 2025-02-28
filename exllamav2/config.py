@@ -127,6 +127,7 @@ class ExLlamaV2Config:
     checkpoint_offset_qzeros: bool
     mrope_section: list | None
     attention_multiplier: float | None
+    partial_rotary_factor: float | None
 
     vision_model_type: str | None
     vision_head_dim: int | None
@@ -360,6 +361,8 @@ class ExLlamaV2Config:
 
         self.sliding_window = read(read_config, int, ["sliding_window", "sliding_window_size"], 0, opt_subkey = "text_config")
         self.sliding_window_pattern = read(read_config, int, ["sliding_window_pattern"], 1)
+
+        self.partial_rotary_factor = read(read_config, float, "partial_rotary_factor", 1.0)
 
         rs = read(read_config, dict, "rope_scaling", None)
         if rs:

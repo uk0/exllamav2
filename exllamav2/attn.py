@@ -317,6 +317,7 @@ class ExLlamaV2Attention(ExLlamaV2Module):
                 cfg.max_seq_len,
                 self.has_residual,
                 self.archparams.rope_style.value,
+                int(cfg.head_dim * cfg.partial_rotary_factor),
                 q_norm,
                 k_norm,
                 post_norm_weight,

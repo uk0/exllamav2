@@ -76,6 +76,7 @@ public:
     bool has_residual;
     bool residual_fp32;
     int rope_style;
+    int sincos_size;
 
     bool use_graphs;
     std::unordered_map<QAttn_params_const, Graph*, QAttn_params_const_hash> graph_map;
@@ -103,6 +104,7 @@ public:
         int _max_seq_len,
         bool _has_residual,
         int _rope_style,
+        int _sincos_size,
         half* _q_norm,
         half* _k_norm,
         half* _post_layernorm,
