@@ -3,12 +3,11 @@ from __future__ import annotations
 import torch
 import math
 from exllamav2.stloader import STFile, cleanup_stfiles
-from exllamav2.architecture import ExLlamaV2ArchParams
+from exllamav2.architecture import ExLlamaV2ArchParams, no_default
 import os, glob, json
 from typing import Any, Dict, List, TypeVar, Union, cast
 
 T = TypeVar('T')
-no_default = object()
 
 def read(
     input_dict: dict[str, Any],
@@ -245,7 +244,7 @@ class ExLlamaV2Config:
         self.bos_token_id = read(read_config, int, "bos_token_id", None)  # 1
         self.eos_token_id = read(read_config, [int, list], "eos_token_id", None)  # 2
         self.pad_token_id = read(read_config, int, "pad_token_id", None)  # 0
-        self.vocab_size = read(read_config, int, "vocab_size", opt_subkey = "text_config")
+        self.vocab_size = read(read_config, int, "vocab_size", self.arch.lm.default_vocab_size, opt_subkey = "text_config")
 
         if isinstance(self.eos_token_id, list):
             self.eos_token_id = self.eos_token_id[0]  # TODO: Figure out a way to maybe use all the EOS tokens somehow
@@ -258,7 +257,7 @@ class ExLlamaV2Config:
         # Norm params
 
         if self.arch.lm.keys["norm_eps"]:
-            self.norm_eps = read(read_config, float, self.arch.lm.keys["norm_eps"], opt_subkey = "text_config")
+            self.norm_eps = read(read_config, float, self.arch.lm.keys["norm_eps"], self.arch.lm.default_rms_norm_eps, opt_subkey = "text_config")
         else:
             self.norm_eps = 1e-5  # Torch default
 
@@ -273,12 +272,15 @@ class ExLlamaV2Config:
             read_config,
             int,
             "head_dim",
-            (self.hidden_size // self.num_attention_heads) if self.num_attention_heads else no_default,
+            (self.hidden_size // self.num_attention_heads) if self.num_attention_heads else self.arch.lm.default_head_dim,
             opt_subkey = "text_config"
         )
 
         if not self.num_attention_heads:
-            self.num_attention_heads = self.hidden_size // self.head_dim
+            if self.arch.lm.default_num_attention_heads != no_default:
+                self.num_attention_heads = self.arch.lm.default_num_attention_heads
+            else:
+                self.num_attention_heads = self.hidden_size // self.head_dim
 
         if self.arch.lm.mqa:
             self.num_key_value_heads = 1
@@ -287,11 +289,11 @@ class ExLlamaV2Config:
                 read_config,
                 int,
                 ["num_key_value_heads", "attn_config->kv_n_heads"],
-                self.num_attention_heads,
+                self.arch.lm.default_num_key_value_heads if self.arch.lm.default_num_key_value_heads != no_default else self.num_attention_heads,
                 opt_subkey = "text_config",
             )
         self.num_key_value_groups = self.num_attention_heads // self.num_key_value_heads
-        self.use_qk_norm = read(read_config, bool, ["use_qk_norm"], False)
+        self.use_qk_norm = read(read_config, bool, ["use_qk_norm"], self.arch.lm.default_use_qk_norm)
 
         self.query_pre_attn_scalar = read(read_config, float, "query_pre_attn_scalar", None)
         self.attention_multiplier = read(read_config, float, "attention_multiplier", None)
@@ -346,7 +348,7 @@ class ExLlamaV2Config:
             read_config,
             float,
             ["rope_theta", "attn_config->rope_theta"],
-            10000.0,
+            self.arch.lm.default_rope_theta,
             opt_subkey = "text_config",
         )
 
@@ -360,7 +362,7 @@ class ExLlamaV2Config:
         self.original_max_seq_len = self.max_seq_len
 
         self.sliding_window = read(read_config, int, ["sliding_window", "sliding_window_size"], 0, opt_subkey = "text_config")
-        self.sliding_window_pattern = read(read_config, int, ["sliding_window_pattern"], 1)
+        self.sliding_window_pattern = read(read_config, int, ["sliding_window_pattern"], self.arch.lm.default_sliding_window_pattern)
 
         self.partial_rotary_factor = read(read_config, float, "partial_rotary_factor", 1.0)
 

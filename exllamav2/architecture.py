@@ -95,6 +95,8 @@ internlm2_keymap = [("$output.", "lm_head."),
                     (".attention.", ".self_attn."),
                     (".wo.", ".o_proj.")]
 
+no_default = object()
+
 class RopeStyle(IntEnum):
     NONE = 0
     GPTJ = 1
@@ -209,6 +211,16 @@ class ExLlamaV2ArchParams:
             # Expected keys
             expect_keys: list[str] = field(default_factory = lambda: [])
             layer_keys: list[str] = field(default_factory = lambda: [])
+
+            # Defaults because Gemma3
+            default_vocab_size = no_default
+            default_rms_norm_eps = no_default
+            default_head_dim = no_default
+            default_num_attention_heads = no_default
+            default_num_key_value_heads = no_default
+            default_use_qk_norm = False
+            default_sliding_window_pattern = 1
+            default_rope_theta = 10000
 
             # Vision stuff
             patch_conv_bias: bool = False
