@@ -99,6 +99,7 @@ class ExLlamaV2Config:
     norm_eps: float | None
     vocab_size: int
     rotary_embedding_base: float
+    rotary_embedding_base_alt: float | None
     scale_long_factor: list[float] | None
     scale_short_factor: list[float] | None
     alt_rope_method: str | None
@@ -351,6 +352,8 @@ class ExLlamaV2Config:
             self.arch.lm.default_rope_theta,
             opt_subkey = "text_config",
         )
+
+        self.rotary_embedding_base_alt = self.arch.lm.sliding_rope_theta
 
         self.max_seq_len = read(
             read_config,

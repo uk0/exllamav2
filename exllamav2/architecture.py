@@ -167,6 +167,7 @@ class ExLlamaV2ArchParams:
             # SWA required by architecture
             swa = False
             alternating_swa = False
+            sliding_rope_theta = None
 
             # Model only works with eager attention
             eager_attn_only = False
@@ -475,6 +476,40 @@ class ExLlamaV2ArchParams:
             self.lm.requires_bos = True
             self.lm.alternating_swa = True
             self.lm.residual_stream_fp32 = True
+
+        # Gemma3
+
+        if arch_string == "Gemma3ForConditionalGeneration":
+            arch_recognized = True
+            self.lm.layer_keys += \
+                layer_keys_gemma2_norms + \
+                layer_keys_llama_attn + \
+                layer_keys_llama_mlp
+            self.lm.expect_keys += \
+                expect_keys_gemma
+            self.lm.keys.update({
+                "lm_head": "model.embed_tokens",
+                "norm_1": ".input_layernorm",
+                "norm_1_post": ".post_attention_layernorm",
+                "norm_2": ".pre_feedforward_layernorm",
+                "norm_2_post": ".post_feedforward_layernorm",
+            })
+            self.lm_prefix = "language_model."
+            self.lm.mlp_act_func = "gelu"
+            self.lm.normalize_embeddings = True
+            self.lm.norm_constant_bias = 1
+            self.lm.requires_bos = True
+            self.lm.alternating_swa = True
+            self.lm.residual_stream_fp32 = True
+            self.lm.sliding_rope_theta = 10000
+            self.lm.default_vocab_size = 262208
+            self.lm.default_rms_norm_eps = 1e-06
+            self.lm.default_head_dim = 256
+            self.lm.default_num_attention_heads = 8
+            self.lm.default_num_key_value_heads = 4
+            self.lm.default_use_qk_norm = True
+            self.lm.default_sliding_window_pattern = 6
+            self.lm.default_rope_theta = 1e6
 
         # StarCoder2
 

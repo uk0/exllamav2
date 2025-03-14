@@ -110,16 +110,18 @@ class ExLlamaV2:
 
             if cfg.arch.lm.alternating_swa:
                 swa = cfg.sliding_window if (layer_idx + 1) % cfg.sliding_window_pattern != 0 else 0
+                if cfg.rotary_embedding_base_alt:
+                    rope_index = 1
             elif cfg.arch.lm.swa:
                 swa = cfg.sliding_window
             else:
                 swa = 0
 
             if cfg.arch.lm.parallel_decoder_blocks:
-                pd = ExLlamaV2ParallelDecoder(self, layer_key, layer_idx, sliding_window = swa)
+                pd = ExLlamaV2ParallelDecoder(self, layer_key, layer_idx, sliding_window = swa, rope_index = rope_index)
                 self.modules += [pd]
             else:
-                attn = ExLlamaV2Attention(self, layer_key, layer_idx, sliding_window = swa)
+                attn = ExLlamaV2Attention(self, layer_key, layer_idx, sliding_window = swa, rope_index = rope_index)
                 if cfg.arch.lm.is_moe: mlp = ExLlamaV2MoEMLP(self, layer_key, layer_idx)
                 else: mlp = ExLlamaV2MLP(self, layer_key, layer_idx)
                 self.modules += [attn, mlp]
