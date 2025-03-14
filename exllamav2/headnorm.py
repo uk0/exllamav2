@@ -48,16 +48,23 @@ class ExLlamaV2HeadNorm(ExLlamaV2Module):
         if isinstance(w, tuple):
             weight = w[0]
             bias = w[1]
+            if len(weight.shape) == 1 and weight.shape[0] == self.model.config.head_dim:
+                weight = nn.Parameter(weight.repeat(self.num_heads, 1))
+                bias = nn.Parameter(bias.repeat(self.num_heads, 1))
         else:
             weight = w
             bias = None
+            if len(weight.shape) == 1 and weight.shape[0] == self.model.config.head_dim:
+                weight = nn.Parameter(weight.repeat(self.num_heads, 1))
 
         assert isinstance(weight, nn.Parameter)
         assert bias is None or isinstance(bias, nn.Parameter)
 
-        self.layernorm = nn.LayerNorm(self.model.config.hidden_size,
-                                      elementwise_affine = True,
-                                      bias = bias is not None)
+        self.layernorm = nn.LayerNorm(
+            self.model.config.hidden_size,
+            elementwise_affine = True,
+            bias = bias is not None
+        )
 
         self.layernorm.weight = weight
         self.weight = weight
