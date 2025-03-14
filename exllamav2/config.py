@@ -494,6 +494,38 @@ class ExLlamaV2Config:
         if self.vision_model_type is None:
             pass
 
+        elif self.vision_model_type == "siglip_vision_model":
+            self.vision_num_attention_heads = read(read_config, int, ["vision_config->num_attention_heads"], no_default)
+            self.vision_num_key_value_heads = read(read_config, int, ["vision_config->num_key_value_heads"], self.vision_num_attention_heads)
+            self.vision_num_key_value_groups = self.vision_num_attention_heads // self.vision_num_key_value_heads
+            self.vision_hidden_size = read(read_config, int, ["vision_config->hidden_size"], no_default)
+            self.vision_head_dim = read(read_config, int, ["vision_config->head_dim"], self.vision_hidden_size // self.vision_num_attention_heads)
+            self.multimodal_projector_bias = read(read_config, bool, ["multimodal_projector_bias"], False)
+
+            patch_size = read(read_config, int, ["vision_config->patch_size"], no_default)
+            self.vision_patch_size = {"width": patch_size, "height": patch_size}
+            self.vision_hidden_act = read(read_config, str, ["vision_config->hidden_act"], "silu")
+            self.vision_num_layers = read(read_config, int, ["vision_config->num_hidden_layers"], 24)
+            self.vision_intermediate_size = read(read_config, int, ["vision_config->intermediate_size"], self.hidden_size)
+
+            image_processor_type = read(read_prep_config, str, ["image_processor_type"], no_default)
+            assert image_processor_type == "Gemma3ImageProcessor", \
+                f"Wrong image processor type: {image_processor_type}"
+            self.vision_image_mean = read(read_prep_config, list, ["image_mean"], no_default)
+            self.vision_image_std = read(read_prep_config, list, ["image_std"], no_default)
+            # self.vision_patch_size = read(read_prep_config, dict, ["patch_size"], no_default)
+            # assert all(self.vision_patch_size.get(x) == patch_size for x in ["width", "height"]), \
+            #     "Patch size inconsistency between config.json and preprocessor_config.json"
+            self.vision_resample = read(read_prep_config, int, ["resample"], no_default)
+            self.vision_rescale_factor = read(read_prep_config, float, ["rescale_factor"], no_default)
+            self.vision_size = read(read_prep_config, dict, ["size"], no_default)
+            self.vision_mm_tokens_per_image = read(read_config, int, "mm_tokens_per_image", no_default)
+            self.vision_num_channels = 3
+            self.vision_spatial_merge_size = 1
+            self.vision_max_size = 16384
+            self.vision_window_size = None
+
+
         elif self.vision_model_type == "pixtral":
             self.vision_head_dim = read(read_config, int, ["vision_config->head_dim"], no_default)
             self.vision_num_attention_heads = read(read_config, int, ["vision_config->num_attention_heads"], no_default)

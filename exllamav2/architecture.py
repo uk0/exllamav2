@@ -94,6 +94,7 @@ internlm2_keymap = [("$output.", "lm_head."),
                     ("$model.tok_embeddings.", "model.embed_tokens."),
                     (".attention.", ".self_attn."),
                     (".wo.", ".o_proj.")]
+google_keymap = [("mm_input_projection_weight", "mm_input_projection.weight")]
 
 no_default = object()
 
@@ -231,6 +232,8 @@ class ExLlamaV2ArchParams:
             vision_conv3d: bool = False
             mrope: bool = False
             rope_freq_half: bool = False
+            learned_emb: bool = False
+            output_norm: bool = False
 
         # Component models
         self.lm_prefix = ""
@@ -316,7 +319,9 @@ class ExLlamaV2ArchParams:
                 "norm_1": ".attention_norm",
                 "norm_2": ".ffn_norm",
                 "layers": "transformer.layers",
+                "ln_pre": "ln_pre",
             })
+            self.vt.mlp_merger = True
 
             self.mmp_prefix = "multi_modal_projector."
             self.mmp.keys.update({
@@ -420,6 +425,7 @@ class ExLlamaV2ArchParams:
             self.vt.attention_bias_o = True
             self.vt.vision_input_norm = False
             self.vt.vision_conv3d = True
+            self.vt.mlp_merger = True
 
             self.mmp_prefix = "visual.merger."
             self.mmp.keys.update({
@@ -510,6 +516,45 @@ class ExLlamaV2ArchParams:
             self.lm.default_use_qk_norm = True
             self.lm.default_sliding_window_pattern = 6
             self.lm.default_rope_theta = 1e6
+
+            self.vt_prefix = "vision_tower.vision_model."
+            self.vt.keys.update({
+                "attn_q": ".self_attn.q_proj",
+                "attn_k": ".self_attn.k_proj",
+                "attn_v": ".self_attn.v_proj",
+                "attn_o": ".self_attn.out_proj",
+                "norm_1": ".layer_norm1",
+                "norm_2": ".layer_norm2",
+                "mlp_gate": None,
+                "mlp_up": ".mlp.fc1",
+                "mlp_down": ".mlp.fc2",
+                "layers": "encoder.layers",
+                "patch_conv": "embeddings.patch_embedding",
+                "position_embedding": "embeddings.position_embedding",
+                "output_norm": "post_layernorm",
+            })
+            self.vt.norm = "rmsnorm"
+            self.vt.patch_conv_bias = True
+            self.vt.mlp_gate = False
+            self.vt.mlp_bias = True
+            self.vt.attention_bias_qkv = True
+            self.vt.attention_bias_o = True
+            self.vt.vision_input_norm = False
+            self.vt.mlp_merger = False
+            self.vt.norm = "layernorm"
+            self.vt.learned_emb = True
+            self.vt.rope_style = RopeStyle.NONE
+            self.vt.mlp_act_func = "gelu"
+            self.vt.output_norm = True
+
+            self.keymap = google_keymap
+            self.compile_fix_keymap = google_keymap
+            self.mmp_prefix = "multi_modal_projector."
+            self.mmp.keys.update({
+                "input_projection": "mm_input_projection",
+                "input_projection_norm": "mm_soft_emb_norm",
+            })
+            self.mmp.norm_constant_bias = 1
 
         # StarCoder2
 
