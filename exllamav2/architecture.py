@@ -120,6 +120,7 @@ class ExLlamaV2ArchParams:
         arch_recognized = False
 
         self.keymap = None
+        self.compile_fix_keymap = None
 
         @dataclass
         class Params:
