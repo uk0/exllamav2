@@ -68,6 +68,9 @@ class ExLlamaV2HeadNorm(ExLlamaV2Module):
 
         assert self.weight.shape == (self.num_heads, self.head_dim), "Head norm tensor shape mismatch"
 
+        if self.archparams.norm_constant_bias != 0:
+            self.weight += self.archparams.norm_constant_bias
+
 
     def unload(self):
 
@@ -84,8 +87,12 @@ class ExLlamaV2HeadNorm(ExLlamaV2Module):
 
     def get_weight(self) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
 
-        if self.bias is not None: return self.weight, self.bias
-        return self.weight
+        w = self.weight.data
+        if self.archparams.norm_constant_bias != 0:
+            return w - self.archparams.norm_constant_bias
+
+        if self.bias is not None: return w, self.bias
+        return w
 
 
     def weight_footprint(self) -> int:
@@ -126,6 +133,7 @@ class ExLlamaV2HeadNorm(ExLlamaV2Module):
             return {"hidden_states": hidden_states}
         else:
             return hidden_states
+
 
     def forward_torch(
         self,
