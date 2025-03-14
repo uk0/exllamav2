@@ -145,7 +145,7 @@ class ExLlamaV2:
             normalize_unq = bool(cfg.norm_head)
         )
         if archparams.keys["lm_head"] != "lm_head":
-            head.alt_key = archparams.keys["lm_head"]
+            head.alt_key = cfg.arch.lm_prefix + archparams.keys["lm_head"]
         self.modules += [head]
 
         # Compile dictionary of modules
