@@ -97,6 +97,10 @@ def compile_model(job, save_fn, model):
                 d = get_q_module(job, module.k_proj); out_dict.update(d); current_size += _dsize(d)
                 d = get_q_module(job, module.v_proj); out_dict.update(d); current_size += _dsize(d)
                 d = get_q_module(job, module.o_proj); out_dict.update(d); current_size += _dsize(d)
+                d = get_f_module(job, module.q_norm)
+                if d: out_dict.update(d); current_size += _dsize(d)
+                d = get_f_module(job, module.k_norm)
+                if d: out_dict.update(d); current_size += _dsize(d)
 
             if isinstance(module, ExLlamaV2MLP):
 
