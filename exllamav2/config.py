@@ -605,7 +605,7 @@ class ExLlamaV2Config:
             self.vision_max_size = 16384
 
         else:
-            raise ValueError(f"Unsupported vision model type: {self.vision_model_type}")
+            print(f" !! Warning: Unsupported vision model type: {self.vision_model_type}")
 
         # Cleanup
 
