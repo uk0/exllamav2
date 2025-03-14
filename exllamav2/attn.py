@@ -628,7 +628,7 @@ class ExLlamaV2Attention(ExLlamaV2Module):
         else:
             hidden_states = self.o_proj.forward(attn_output, loras = loras)
             if self.post_layernorm:
-                hidden_states = self.post_layernorm.forward(hidden_states)
+                hidden_states = self.post_layernorm.forward(hidden_states, output_fp32 = self.archparams.residual_stream_fp32)
             if self.has_residual:
                 hidden_states += residual
 
