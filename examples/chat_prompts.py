@@ -494,8 +494,8 @@ class PromptFormat_gemma(PromptFormat):
     def stop_conditions(self, tokenizer):
         return \
             [tokenizer.eos_token_id,
-             """</s>""",
-             """<end_of_turn>""",
+             tokenizer.single_id("<end_of_turn>"),
+             tokenizer.single_id("<start_of_turn>"),
              ]
 
     def encoding_options(self):

@@ -29,9 +29,13 @@ torch.set_printoptions(precision = 5, sci_mode = False, linewidth=200)
 # Qwen2-VL:
 #   https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct
 #   https://huggingface.co/turboderp/Qwen2-VL-7B-Instruct-exl2
+# Gemma3:
+#   https://huggingface.co/google/gemma-3-27b-it
+#   https://huggingface.co/turboderp/gemma-3-27b-it-exl2
 
 # mode = "pixtral"
-mode = "qwen2"
+# mode = "qwen2"
+mode = "gemma3"
 
 streaming = True
 greedy = True
@@ -39,18 +43,20 @@ greedy = True
 if mode == "pixtral":
     model_directory = "/mnt/str/models/pixtral-12b-exl2/6.0bpw"
 elif mode == "qwen2":
-    model_directory = "/mnt/str/models/qwen2-vl-7b-instruct-exl2/6.0bpw"
+    model_directory = "/mnt/str/models/qwen2.5-vl-7b-instruct-exl2/6.0bpw"
+elif mode == "gemma3":
+    model_directory = "/mnt/str/models/gemma3-27b-it-exl2/5.0bpw"
 
 images = [
-    {"file": "media/test_image_1.jpg"},
-    {"file": "media/test_image_2.jpg"},
-    # {"url": "https://media.istockphoto.com/id/1212540739/photo/mom-cat-with-kitten.jpg?s=612x612&w=0&k=20&c=RwoWm5-6iY0np7FuKWn8FTSieWxIoO917FF47LfcBKE="},
+    # {"file": "media/test_image_1.jpg"},
+    # {"file": "media/test_image_2.jpg"},
+    {"url": "https://media.istockphoto.com/id/1212540739/photo/mom-cat-with-kitten.jpg?s=612x612&w=0&k=20&c=RwoWm5-6iY0np7FuKWn8FTSieWxIoO917FF47LfcBKE="},
     # {"url": "https://i.dailymail.co.uk/1s/2023/07/10/21/73050285-12283411-Which_way_should_I_go_One_lady_from_the_US_shared_this_incredibl-a-4_1689019614007.jpg"},
     # {"url": "https://images.fineartamerica.com/images-medium-large-5/metal-household-objects-trevor-clifford-photography.jpg"}
 ]
 
-instruction = "Compare and contrast the two experiments."
-# instruction = "Describe the image."
+# instruction = "Compare and contrast the two experiments."
+instruction = "Describe the image."
 # instruction = "Find the alarm clock."  # Qwen2 seems to support this but unsure of how to prompt correctly
 
 # Initialize model
@@ -122,6 +128,7 @@ if mode == "pixtral":
         instruction +
         "[/INST]"
     )
+    stop_conditions = [tokenizer.eos_token_id]
 
 elif mode == "qwen2":
     prompt = (
@@ -133,6 +140,18 @@ elif mode == "qwen2":
         "<|im_end|>\n" +
         "<|im_start|>assistant\n"
     )
+    stop_conditions = [tokenizer.eos_token_id]
+
+elif mode == "gemma3":
+    prompt = (
+        "<start_of_turn>user\nYou are a helpful assistant.\n\n\n\n" +
+        placeholders +
+        "\n" +
+        instruction +
+        "<end_of_turn>\n" +
+        "<start_of_turn>model\n"
+    )
+    stop_conditions = [tokenizer.single_id("<end_of_turn>")]
 
 # Generate
 
@@ -149,7 +168,7 @@ if streaming:
         input_ids = input_ids,
         max_new_tokens = 500,
         decode_special_tokens = True,
-        stop_conditions = [tokenizer.eos_token_id],
+        stop_conditions = stop_conditions,
         gen_settings = ExLlamaV2Sampler.Settings.greedy() if greedy else None,
         embeddings = image_embeddings,
     )
