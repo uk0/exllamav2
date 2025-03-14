@@ -12,9 +12,9 @@ if TYPE_CHECKING:
 def get_rope_params_su(
     device: torch.Device,
     cfg: ExLlamaV2Config,
+    base: float
 ):
     head_dim = int(cfg.head_dim * cfg.partial_rotary_factor)
-    base = cfg.rotary_embedding_base
     if cfg.scale_alpha_value and cfg.scale_alpha_value != 1.0:
         base *= cfg.scale_alpha_value ** (cfg.head_dim / (cfg.head_dim - 2))
 
@@ -35,9 +35,9 @@ def get_rope_params_su(
 def get_rope_params_llama3(
     device: torch.Device,
     cfg: ExLlamaV2Config,
+    base: float
 ):
     head_dim = int(cfg.head_dim * cfg.partial_rotary_factor)
-    base = cfg.rotary_embedding_base
     if cfg.scale_alpha_value and cfg.scale_alpha_value != 1.0:
         base *= cfg.scale_alpha_value ** (cfg.head_dim / (cfg.head_dim - 2))
 
@@ -80,10 +80,10 @@ def get_rope_params_llama3(
 def get_rope_params_yarn(
     device: torch.Device,
     cfg: ExLlamaV2Config,
+    base: float,
 ):
     head_dim = int(cfg.head_dim * cfg.partial_rotary_factor)
 
-    base = cfg.rotary_embedding_base
     if cfg.scale_alpha_value and cfg.scale_alpha_value != 1.0:
         base *= cfg.scale_alpha_value ** (cfg.head_dim / (cfg.head_dim - 2))
 
@@ -148,10 +148,10 @@ def get_rope_params_yarn(
 def get_rope_params_default(
     device: torch.Device,
     cfg: ExLlamaV2Config,
+    base: float,
 ):
     head_dim = int(cfg.head_dim * cfg.partial_rotary_factor)
 
-    base = cfg.rotary_embedding_base
     if cfg.scale_alpha_value and cfg.scale_alpha_value != 1.0:
         base *= cfg.scale_alpha_value ** (head_dim / (head_dim - 2))
 
@@ -162,15 +162,16 @@ def get_rope_params_default(
 def get_rope_params(
     device: torch.Device,
     cfg: ExLlamaV2Config,
+    base: float,
 ):
     if cfg.alt_rope_method == "su":
-        inv_freq, scaling_factor = get_rope_params_su(device, cfg)
+        inv_freq, scaling_factor = get_rope_params_su(device, cfg, base)
     elif cfg.alt_rope_method == "llama3":
-        inv_freq, scaling_factor = get_rope_params_llama3(device, cfg)
+        inv_freq, scaling_factor = get_rope_params_llama3(device, cfg, base)
     elif cfg.alt_rope_method == "yarn":
-        inv_freq, scaling_factor = get_rope_params_yarn(device, cfg)
+        inv_freq, scaling_factor = get_rope_params_yarn(device, cfg, base)
     else:
-        inv_freq, scaling_factor = get_rope_params_default(device, cfg)
+        inv_freq, scaling_factor = get_rope_params_default(device, cfg, base)
 
     if cfg.arch.lm.rope_freq_half:
         inv_freq = inv_freq.half()

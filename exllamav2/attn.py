@@ -135,7 +135,8 @@ class ExLlamaV2Attention(ExLlamaV2Module):
         has_norm: bool = True,
         has_residual: bool = True,
         sliding_window: int = 0,
-        archparams = None
+        archparams = None,
+        rope_index: int = 0
     ):
         super().__init__(model, key, archparams)
 
@@ -149,6 +150,7 @@ class ExLlamaV2Attention(ExLlamaV2Module):
         self.layer_idx = layer_idx
         self.has_norm = has_norm
         self.has_residual = has_residual
+        self.rope_index = rope_index
 
         self.q_handle = None
         self.temp_lora_size = 0
@@ -503,7 +505,7 @@ class ExLlamaV2Attention(ExLlamaV2Module):
 
         sc = attn_params.get_alt_rope_embed(self.device_idx)
         if not sc:
-            sin, cos = constants.sin, constants.cos
+            sin, cos = constants.sin[self.rope_index], constants.cos[self.rope_index]
         else:
             sin, cos = sc
 
@@ -769,8 +771,8 @@ class ExLlamaV2Attention(ExLlamaV2Module):
                 for t, heads in [(q[idx], self.num_key_value_groups), (k[idx], 1)]:
                     ext_c.rope_(
                         t,
-                        context.sin,
-                        context.cos,
+                        context.sin[self.rope_index],
+                        context.cos[self.rope_index],
                         0,
                         (b - a) * heads,
                         self.head_dim,
@@ -1116,7 +1118,7 @@ class ExLlamaV2Attention(ExLlamaV2Module):
 
         sc = attn_params.get_alt_rope_embed(self.device_idx)
         if not sc:
-            sin, cos = constants.sin, constants.cos
+            sin, cos = constants.sin[self.rope_index], constants.cos[self.rope_index]
         else:
             sin, cos = sc
 
@@ -1304,8 +1306,8 @@ class ExLlamaV2Attention(ExLlamaV2Module):
                 for t, heads in [(q[idx], self.num_key_value_groups), (k[idx], 1)]:
                     ext_c.rope_(
                         t,
-                        context.sin,
-                        context.cos,
+                        context.sin[self.rope_index],
+                        context.cos[self.rope_index],
                         past_len,
                         (b - a) * heads,
                         self.head_dim,
@@ -1444,7 +1446,7 @@ class ExLlamaV2Attention(ExLlamaV2Module):
 
         if self.archparams.rope_style != RopeStyle.NONE:
             alt_cs = kwargs.get("alt_rope_embedding")
-            cos, sin = alt_cs if alt_cs else (constants.cos, constants.sin)
+            cos, sin = alt_cs if alt_cs else (constants.cos[self.rope_index], constants.sin[self.rope_index])
 
             sc = attn_params.get_alt_rope_embed(self.device_idx)
             if sc: sin, cos = sc

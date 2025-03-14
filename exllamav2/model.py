@@ -106,6 +106,7 @@ class ExLlamaV2:
         for layer_idx in range(cfg.num_hidden_layers):
 
             layer_key = cfg.arch.lm_prefix + f"model.layers.{layer_idx}"
+            rope_index = 0
 
             if cfg.arch.lm.alternating_swa:
                 swa = cfg.sliding_window if (layer_idx + 1) % cfg.sliding_window_pattern != 0 else 0
