@@ -273,7 +273,11 @@ class ExLlamaV2Config:
             read_config,
             int,
             "head_dim",
-            (self.hidden_size // self.num_attention_heads) if self.num_attention_heads else self.arch.lm.default_head_dim,
+            (
+                self.arch.lm.default_head_dim if self.arch.lm.default_head_dim != no_default else
+                (self.hidden_size // self.num_attention_heads) if self.num_attention_heads else
+                no_default
+            ),
             opt_subkey = "text_config"
         )
 
