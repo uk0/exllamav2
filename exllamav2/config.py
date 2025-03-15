@@ -296,8 +296,8 @@ class ExLlamaV2Config:
         self.num_key_value_groups = self.num_attention_heads // self.num_key_value_heads
         self.use_qk_norm = read(read_config, bool, ["use_qk_norm"], self.arch.lm.default_use_qk_norm)
 
-        self.query_pre_attn_scalar = read(read_config, float, "query_pre_attn_scalar", None)
-        self.attention_multiplier = read(read_config, float, "attention_multiplier", None)
+        self.query_pre_attn_scalar = read(read_config, float, ["query_pre_attn_scalar"], None, opt_subkey = "text_config")
+        self.attention_multiplier = read(read_config, float, ["attention_multiplier"], None, opt_subkey = "text_config")
 
         # MLP params
 
