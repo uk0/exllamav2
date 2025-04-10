@@ -209,6 +209,7 @@ class ExLlamaV2ArchParams:
 
             # Layer norm type
             norm = "rmsnorm"
+            headnorm = "layernorm"
 
             # RoPE style
             rope_style = RopeStyle.NEOX
@@ -520,6 +521,7 @@ class ExLlamaV2ArchParams:
             self.lm.default_sliding_window_pattern = 6
             self.lm.default_rope_theta = 1e6
             self.lm.pos_id_index = 1
+            self.lm.headnorm = "rmsnorm"
 
             self.vt_prefix = "vision_tower.vision_model."
             self.vt.keys.update({

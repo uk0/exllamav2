@@ -44,6 +44,7 @@ public:
     half* post_layernorm;
     half* post_layernorm_bias;
     bool layernorm_is_rms;
+    bool headnorm_is_rms;
     float norm_epsilon;
 
     half* q_norm;
@@ -86,6 +87,7 @@ public:
         half* _layernorm,
         half* _layernorm_bias,
         bool _layernorm_is_rms,
+        bool _headnorm_is_rms,
         float _norm_epsilon,
         QMatrix* _q_proj,
         QMatrix* _k_proj,

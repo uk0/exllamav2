@@ -4,6 +4,7 @@ uintptr_t make_q_attn
     torch::Tensor layernorm,
     torch::Tensor layernorm_bias,
     bool layernorm_is_rms,
+    bool headnorm_is_rms,
     float norm_epsilon,
     uintptr_t q_q_proj,
     uintptr_t q_k_proj,

@@ -301,6 +301,7 @@ class ExLlamaV2Attention(ExLlamaV2Module):
                 norm_weight,
                 norm_bias,
                 is_rms,
+                self.archparams.headnorm == "rmsnorm",
                 eps,
                 self.q_proj.q_handle,
                 self.k_proj.q_handle,

@@ -129,12 +129,12 @@ class ExLlamaV2HeadNorm(ExLlamaV2Module):
         **kwargs
     ) -> torch.Tensor | dict[str: torch.Tensor]:
 
-        norm = torch.empty_like(hidden_states)
         ext_c.head_norm(hidden_states,
                         self.weight.data,
                         self.bias.data if self.bias is not None else none_tensor,
                         hidden_states,
-                        self.variance_epsilon)
+                        self.variance_epsilon,
+                        self.archparams.headnorm == "rmsnorm")
 
         if intermediates:
             return {"hidden_states": hidden_states}
@@ -153,13 +153,21 @@ class ExLlamaV2HeadNorm(ExLlamaV2Module):
         **kwargs
     ) -> torch.Tensor | dict[str: torch.Tensor]:
 
-        input_dtype = hidden_states.dtype
-        hidden_states = hidden_states.to(torch.float32)
-        mean = hidden_states.mean(-1, keepdim = True)
-        variance = (hidden_states - mean).pow(2).mean(-1, keepdim = True)
-        hidden_states = (hidden_states - mean) * torch.rsqrt(variance + self.variance_epsilon)
-        hidden_states = self.weight.to(torch.float32) * hidden_states
-        hidden_states = hidden_states.to(input_dtype)
+        if self.archparams.headnorm == "rmsnorm":
+            input_dtype = hidden_states.dtype
+            hidden_states = hidden_states.to(torch.float32)
+            variance = hidden_states.pow(2).mean(-1, keepdim = True)
+            hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
+            hidden_states = self.weight.to(torch.float32) * hidden_states
+            hidden_states = hidden_states.to(input_dtype)
+        else:
+            input_dtype = hidden_states.dtype
+            hidden_states = hidden_states.to(torch.float32)
+            mean = hidden_states.mean(-1, keepdim = True)
+            variance = (hidden_states - mean).pow(2).mean(-1, keepdim = True)
+            hidden_states = (hidden_states - mean) * torch.rsqrt(variance + self.variance_epsilon)
+            hidden_states = self.weight.to(torch.float32) * hidden_states
+            hidden_states = hidden_states.to(input_dtype)
 
         if intermediates:
             return {"hidden_states": hidden_states}
