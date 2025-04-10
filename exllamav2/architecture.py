@@ -169,6 +169,8 @@ class ExLlamaV2ArchParams:
             swa = False
             alternating_swa = False
             sliding_rope_theta = None
+            sliding_rope_scale = None
+            pos_id_index = 0
 
             # Model only works with eager attention
             eager_attn_only = False
@@ -508,6 +510,7 @@ class ExLlamaV2ArchParams:
             self.lm.alternating_swa = True
             self.lm.residual_stream_fp32 = True
             self.lm.sliding_rope_theta = 10000
+            self.lm.sliding_rope_scale = 1
             self.lm.default_vocab_size = 262208
             self.lm.default_rms_norm_eps = 1e-06
             self.lm.default_head_dim = 256
@@ -516,6 +519,7 @@ class ExLlamaV2ArchParams:
             self.lm.default_use_qk_norm = True
             self.lm.default_sliding_window_pattern = 6
             self.lm.default_rope_theta = 1e6
+            self.lm.pos_id_index = 1
 
             self.vt_prefix = "vision_tower.vision_model."
             self.vt.keys.update({

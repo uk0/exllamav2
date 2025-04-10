@@ -42,6 +42,8 @@ class ExLlamaV2DeviceContext:
 
     sin: list[torch.Tensor] | None
     cos: list[torch.Tensor] | None
+    local_sin: list[torch.Tensor] | None
+    local_cos: list[torch.Tensor] | None
 
     scratch: torch.Tensor | None
 
@@ -119,13 +121,15 @@ class ExLlamaV2DeviceContext:
         cfg = self.model.config
 
         thetas = [cfg.rotary_embedding_base]
+        scales = [cfg.scale_pos_emb]
         if cfg.rotary_embedding_base_alt:
             thetas.append(cfg.rotary_embedding_base_alt)
+            scales.append(cfg.scale_pos_emb_alt)
 
         self.sin = []
         self.cos = []
 
-        for theta in thetas:
+        for theta, lscale in zip(thetas, scales):
 
             if self.archparams.rope_style == RopeStyle.NONE:
                 sin = torch.zeros((1,), device = device, dtype = torch.half)
@@ -140,8 +144,10 @@ class ExLlamaV2DeviceContext:
 
             # Common
 
-            scale = cfg.scale_pos_emb or 1.0
+            scale = lscale or 1.0
             t = torch.arange(cfg.max_seq_len, device = device, dtype = torch.float32)
+            if cfg.pos_id_index != 0:
+                t += cfg.pos_id_index
             if scale != 1.0: t /= scale
 
             freqs = torch.einsum("i,j->ij", t, inv_freq)

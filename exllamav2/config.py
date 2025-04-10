@@ -100,6 +100,8 @@ class ExLlamaV2Config:
     vocab_size: int
     rotary_embedding_base: float
     rotary_embedding_base_alt: float | None
+    pos_id_index: int
+    scale_pos_emb_alt: float | None
     scale_long_factor: list[float] | None
     scale_short_factor: list[float] | None
     alt_rope_method: str | None
@@ -358,6 +360,8 @@ class ExLlamaV2Config:
         )
 
         self.rotary_embedding_base_alt = self.arch.lm.sliding_rope_theta
+        self.scale_pos_emb_alt = self.arch.lm.sliding_rope_scale
+        self.pos_id_index = self.arch.lm.pos_id_index
 
         self.max_seq_len = read(
             read_config,
@@ -373,11 +377,12 @@ class ExLlamaV2Config:
 
         self.partial_rotary_factor = read(read_config, float, "partial_rotary_factor", 1.0)
 
-        rs = read(read_config, dict, "rope_scaling", None)
+        rs = read(read_config, dict, ["rope_scaling", "text_config->rope_scaling"], None)
         if rs:
             scaling_type = rs.get("type", None)
             rope_type = rs.get("rope_type", None)
             assert not (scaling_type and rope_type), "rope_scaling key has both `type` and `rope_type` subkeys"
+            if not scaling_type: scaling_type = rope_type
             if scaling_type == "linear":
                 assert "factor" in rs, "'factor' missing from 'rope_scaling' config"
                 self.scale_pos_emb = rs.get("factor", 1.0)
@@ -394,7 +399,7 @@ class ExLlamaV2Config:
                 self.alt_rope_method = "yarn"
                 self.yarn_rope_factor = rs["factor"]
                 self.yarn_rope_original_max_position_embeddings = rs["original_max_position_embeddings"]
-            if rope_type == "llama3":
+            if scaling_type == "llama3":
                 self.alt_rope_method = "llama3"
                 self.l3_rope_factor = rs["factor"]
                 self.l3_rope_low_freq_factor = rs["low_freq_factor"]
