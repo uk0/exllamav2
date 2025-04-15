@@ -832,7 +832,7 @@ class ExLlamaV2ArchParams:
                 "norm_2": ".post_attention_layernorm",
                 "norm_2_post": ".post_mlp_layernorm",
             })
-            self.lm.attention_bias_qkv = True
+            self.lm.attention_bias_qkv = read_config.get("attention_bias", False)
 
         # Llama (default + fallback)
 
