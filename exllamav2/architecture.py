@@ -16,6 +16,10 @@ layer_keys_gemma2_norms = [["input_layernorm"],
                            ["post_feedforward_layernorm"]]
 layer_keys_internlm2_norms = [["attention_norm"],
                               ["ffn_norm"]]
+layer_keys_glm4_norms = [["input_layernorm"],
+                          ["post_self_attn_layernorm"],
+                          ["post_attention_layernorm"],
+                          ["post_mlp_layernorm"]]
 layer_keys_llama_attn = [["self_attn.q_proj"],
                          ["self_attn.k_proj"],
                          ["self_attn.v_proj"],
@@ -808,6 +812,28 @@ class ExLlamaV2ArchParams:
             self.lm.expect_keys += \
                 expect_keys_llama
 
+        # GLM4
+
+        if arch_string == "Glm4ForCausalLM":
+            arch_recognized = True
+            self.lm.layer_keys += \
+                layer_keys_glm4_norms + \
+                layer_keys_llama_attn + \
+                layer_keys_phi3_mlp
+            self.lm.expect_keys += \
+                expect_keys_llama
+            self.lm.supports_tp = True
+            self.lm.rope_style = RopeStyle.GPTJ
+            self.lm.keys.update({
+                "fused_mlp_12": "gate_up_proj",
+                "lm_head": "model.embed_tokens",
+                "norm_1": ".input_layernorm",
+                "norm_1_post": ".post_self_attn_layernorm",
+                "norm_2": ".post_attention_layernorm",
+                "norm_2_post": ".post_mlp_layernorm",
+            })
+            self.lm.attention_bias_qkv = True
+
         # Llama (default + fallback)
 
         if arch_string != "LlamaForCausalLM" and not arch_recognized:
@@ -825,7 +851,7 @@ class ExLlamaV2ArchParams:
 
         # Arch overrides
 
-        if read_config.get("attention_bias", False):
+        if read_config.get("attention_bias", False) and not (self.lm.attention_bias_qkv or self.lm.attention_bias_o):
             self.lm.attention_bias_qkv = True
             self.lm.attention_bias_o = True
 

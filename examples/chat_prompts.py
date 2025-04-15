@@ -674,6 +674,50 @@ class PromptFormat_cohere(PromptFormat):
         return True
 
 
+class PromptFormat_glm(PromptFormat):
+    description = "GLM4"
+
+    def __init__(self):
+        super().__init__()
+        pass
+
+    def default_system_prompt(self):
+        return \
+            f"""You are a helpful AI assistant."""
+
+    def first_prompt(self, sysprompt):
+        r = """[gMASK]<sop>"""
+        if sysprompt:
+            r += \
+                """<|system|>\n""" + \
+                """<|system_prompt|>"""
+        r += \
+            """<|user|>\n""" + \
+            """<|user_prompt|>""" + \
+            """<|assistant|>\n"""
+        return r
+
+    def subs_prompt(self):
+        return \
+            """<|user|>\n""" + \
+            """<|user_prompt|>""" + \
+            """<|assistant|>\n"""
+
+    def stop_conditions(self, tokenizer):
+        return \
+            [tokenizer.eos_token_id,
+             tokenizer.single_id("<|user|>"),
+             """<|user|>""",
+             ]
+
+    def encoding_options(self):
+        return True, False, True
+
+    def print_extra_newline(self):
+        return True
+
+
+
 prompt_formats = \
 {
     "raw": PromptFormat_raw,
@@ -693,4 +737,5 @@ prompt_formats = \
     "phi3": PromptFormat_phi3,
     "granite": PromptFormat_granite,
     "granite3": PromptFormat_granite3,
+    "glm": PromptFormat_glm
 }
