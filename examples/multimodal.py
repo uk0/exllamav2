@@ -26,6 +26,8 @@ torch.set_printoptions(precision = 5, sci_mode = False, linewidth=200)
 # Pixtral:
 #   https://huggingface.co/mistral-community/pixtral-12b/
 #   https://huggingface.co/turboderp/pixtral-12b-exl2
+# Mistral-Small 3.1:
+#   https://huggingface.co/prince-canuma/Mistral-Small-3.1-24B-Instruct-2503
 # Qwen2-VL:
 #   https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct
 #   https://huggingface.co/turboderp/Qwen2-VL-7B-Instruct-exl2
@@ -34,8 +36,9 @@ torch.set_printoptions(precision = 5, sci_mode = False, linewidth=200)
 #   https://huggingface.co/turboderp/gemma-3-27b-it-exl2
 
 # mode = "pixtral"
+mode = "mistral3"
 # mode = "qwen2"
-mode = "gemma3"
+# mode = "gemma3"
 
 streaming = True
 greedy = True
@@ -43,9 +46,11 @@ greedy = True
 if mode == "pixtral":
     model_directory = "/mnt/str/models/pixtral-12b-exl2/6.0bpw"
 elif mode == "qwen2":
-    model_directory = "/mnt/str/models/qwen2.5-vl-7b-instruct-exl2/6.0bpw"
+    model_directory = "/mnt/str/models/qwen2.5-vl-7b-instruct-exl2/5.0bpw"
 elif mode == "gemma3":
-    model_directory = "/mnt/str/models/gemma3-27b-it-exl2/5.0bpw"
+    model_directory = "/mnt/str/models/gemma3-12b-it-exl2/6.0bpw"
+elif mode == "mistral3":
+    model_directory = "/mnt/str/models/mistral-small-3.1-24b-instruct/exl2/4.5bpw"
 
 images = [
     # {"file": "media/test_image_1.jpg"},
@@ -62,7 +67,7 @@ instruction = "Describe the image."
 # Initialize model
 
 config = ExLlamaV2Config(model_directory)
-config.max_seq_len = 16384  # Pixtral default is 1M
+config.max_seq_len = 8192  # Pixtral default is 1M
 
 # Load vision model and multimodal projector and initialize preprocessor
 
@@ -72,8 +77,8 @@ vision_model.load(progress = True)
 # Load EXL2 model
 
 model = ExLlamaV2(config)
-cache = ExLlamaV2Cache(model, lazy = True, max_seq_len = 16384)
-model.load_autosplit(cache, progress = True)
+cache = ExLlamaV2Cache(model, max_seq_len = 8192, lazy = True)
+model.load_autosplit(progress = True, cache = cache)
 tokenizer = ExLlamaV2Tokenizer(config)
 
 # Create generator
@@ -121,7 +126,7 @@ placeholders = "\n".join([ie.text_alias for ie in image_embeddings]) + "\n"
 # Image token IDs are assigned sequentially, however, so two ExLlamaV2Embedding objects created from the same
 # source image will not be recognized as the same image for purposes of prompt caching etc.
 
-if mode == "pixtral":
+if mode in ["pixtral", "mistral3"]:
     prompt = (
         "[INST]" +
         placeholders +

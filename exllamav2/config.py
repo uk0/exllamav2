@@ -552,18 +552,20 @@ class ExLlamaV2Config:
             self.vision_merger_intermediate_size = self.vision_intermediate_size
 
             image_processor_type = read(read_prep_config, str, ["image_processor_type"], no_default)
-            assert image_processor_type == "PixtralImageProcessor", \
+            assert image_processor_type == "PixtralImageProcessor" or image_processor_type == "PixtralImageProcessorFast", \
                 f"Wrong image processor type: {image_processor_type}"
             self.vision_image_mean = read(read_prep_config, list, ["image_mean"], no_default)
             self.vision_image_std = read(read_prep_config, list, ["image_std"], no_default)
-            self.vision_patch_size = read(read_prep_config, dict, ["patch_size"], no_default)
+            self.vision_patch_size = read(read_prep_config, object, ["patch_size"], no_default)
+            if isinstance(self.vision_patch_size, int):
+                self.vision_patch_size = {"width": self.vision_patch_size, "height": self.vision_patch_size}
             assert all(self.vision_patch_size.get(x) == patch_size for x in ["width", "height"]), \
                 "Patch size inconsistency between config.json and preprocessor_config.json"
             self.vision_resample = read(read_prep_config, int, ["resample"], no_default)
             self.vision_rescale_factor = read(read_prep_config, float, ["rescale_factor"], no_default)
             self.vision_size = read(read_prep_config, dict, ["size"], no_default)
             self.vision_num_channels = 3
-            self.vision_spatial_merge_size = 1
+            self.vision_spatial_merge_size = read(read_config, int, ["spatial_merge_size"], 1)
             self.vision_max_size = 16384
             self.vision_window_size = None
 

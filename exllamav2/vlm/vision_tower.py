@@ -309,6 +309,7 @@ class ExLlamaV2VisionTower(ExLlamaV2):
                 attn_params = attn_params,
                 **kwargs | ({
                     "alt_rope_embedding": (cos, sin),
+                    "patch_size": (p_height, p_width),
                 } if cos is not None else {})
             )
 

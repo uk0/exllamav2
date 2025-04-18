@@ -57,6 +57,9 @@ def postprocess(
     Insert [IMG_BREAK] and [IMG_END] tokens in image feature embeddings
     """
 
+    features_x //= model.config.vision_spatial_merge_size
+    features_y //= model.config.vision_spatial_merge_size
+
     assert embeddings.shape[0] == features_y * features_x, \
         "Invalid shape for embeddings"
 

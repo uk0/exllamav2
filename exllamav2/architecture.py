@@ -241,6 +241,8 @@ class ExLlamaV2ArchParams:
             rope_freq_half: bool = False
             learned_emb: bool = False
             output_norm: bool = False
+            mlp_merger: bool = False
+            mlp_patch_merger: bool = False
 
         # Component models
         self.lm_prefix = ""
@@ -336,6 +338,52 @@ class ExLlamaV2ArchParams:
                 "mlp_up": "linear_1",
                 "mlp_down": "linear_2",
             })
+            self.mmp.mlp_gate = False
+            self.mmp.mlp_act_func = "gelu"
+            self.mmp.mlp_bias = bool(read_config.get("multimodal_projector_bias", True))
+
+        # Mistral 3 multimodal
+
+        if (
+            arch_string == "Mistral3ForConditionalGeneration" and
+            "vision_config" in read_config and
+            read_config["vision_config"].get("model_type") == "pixtral"
+        ):
+            arch_recognized = True
+            self.lm_prefix = "language_model."
+            self.lm.layer_keys += \
+                layer_keys_llama_norms + \
+                layer_keys_llama_attn + \
+                layer_keys_llama_mlp
+            self.lm.expect_keys += \
+                expect_keys_llama
+
+            self.vt_prefix = "vision_tower."
+            self.vt.keys.update({
+                "attn_q": ".attention.q_proj",
+                "attn_k": ".attention.k_proj",
+                "attn_v": ".attention.v_proj",
+                "attn_o": ".attention.o_proj",
+                "mlp_gate": ".feed_forward.gate_proj",
+                "mlp_up": ".feed_forward.up_proj",
+                "mlp_down": ".feed_forward.down_proj",
+                "norm_1": ".attention_norm",
+                "norm_2": ".ffn_norm",
+                "layers": "transformer.layers",
+                "ln_pre": "ln_pre",
+            })
+            self.vt.mlp_merger = True
+            self.vt.mlp_patch_merger = True
+
+            self.mmp_prefix = "multi_modal_projector."
+            self.mmp.keys.update({
+                "norm_2": "norm",
+                "mlp_gate": None,
+                "mlp_up": "linear_1",
+                "mlp_down": "linear_2",
+                "patch_merger": "patch_merger.merging_layer",
+            })
+            self.mmp.mlp_patch_merger = True
             self.mmp.mlp_gate = False
             self.mmp.mlp_act_func = "gelu"
             self.mmp.mlp_bias = bool(read_config.get("multimodal_projector_bias", True))
