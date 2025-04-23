@@ -111,7 +111,7 @@ class ExLlamaV2:
             if cfg.arch.lm.alternating_swa:
                 if cfg.sliding_window_pattern > 1:
                     swa = cfg.sliding_window if (layer_idx + 1) % cfg.sliding_window_pattern != 0 else 0
-                    if cfg.rotary_embedding_base_alt:
+                    if swa and cfg.rotary_embedding_base_alt:
                         rope_index = 1
                 else:
                     swa = cfg.sliding_window if not bool(layer_idx % 2) else 0
