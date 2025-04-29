@@ -428,6 +428,19 @@ class ExLlamaV2ArchParams:
             self.lm.attention_bias_qkv = True
             self.lm.supports_tp = True
 
+        # Qwen3
+
+        if arch_string == "Qwen3ForCausalLM":
+            arch_recognized = True
+            self.lm.layer_keys += \
+                layer_keys_llama_norms + \
+                layer_keys_llama_attn + \
+                layer_keys_llama_mlp
+            self.lm.expect_keys += \
+                expect_keys_llama
+            self.lm.supports_tp = True
+            self.lm.default_use_qk_norm = True
+
         # Qwen2-VL (2, 2.5)
 
         if arch_string in ["Qwen2VLForConditionalGeneration", "Qwen2_5_VLForConditionalGeneration"]:
