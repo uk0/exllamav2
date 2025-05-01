@@ -53,6 +53,10 @@ layer_keys_mixtral_mlp = [["block_sparse_moe.experts.*.w1"],
                           ["block_sparse_moe.experts.*.w2"],
                           ["block_sparse_moe.experts.*.w3"],
                           ["block_sparse_moe.gate"]]
+layer_keys_qwen3moe_mlp = [["mlp.experts.*.gate_proj"],
+                           ["mlp.experts.*.up_proj"],
+                           ["mlp.experts.*.down_proj"],
+                           ["mlp.gate"]]
 layer_keys_dbrx_mlp = [["block_sparse_moe.experts.*.v1", "block_sparse_moe.experts.v1"],
                        ["block_sparse_moe.experts.*.w1", "block_sparse_moe.experts.w1"],
                        ["block_sparse_moe.experts.*.w2", "block_sparse_moe.experts.w2"],
@@ -440,6 +444,26 @@ class ExLlamaV2ArchParams:
                 expect_keys_llama
             self.lm.supports_tp = True
             self.lm.default_use_qk_norm = True
+
+        # Qwen3MoE
+
+        if arch_string == "Qwen3MoeForCausalLM":
+            arch_recognized = True
+            self.lm.layer_keys += \
+                layer_keys_llama_norms + \
+                layer_keys_llama_attn + \
+                layer_keys_qwen3moe_mlp
+            self.lm.expect_keys += \
+                expect_keys_llama
+            self.lm.supports_tp = True
+            self.lm.default_use_qk_norm = True
+            self.lm.keys.update({
+                "mlp_gate": ".mlp.experts.*.gate_proj",
+                "mlp_up": ".mlp.experts.*.up_proj",
+                "mlp_down": ".mlp.experts.*.down_proj",
+                "mlp_expert_gate": ".mlp.gate"
+            })
+            self.lm.is_moe = True
 
         # Qwen2-VL (2, 2.5)
 

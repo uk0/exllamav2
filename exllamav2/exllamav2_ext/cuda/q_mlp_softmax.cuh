@@ -1,5 +1,5 @@
 
-#define WARPS 32
+#define WARPSIZE 32
 
 __global__ void softmax16_topk_norm_kernel
 (
@@ -8,7 +8,7 @@ __global__ void softmax16_topk_norm_kernel
     const int topk
 )
 {
-    int row = blockIdx.y * WARPS + threadIdx.x;
+    int row = blockIdx.y * WARPSIZE + threadIdx.x;
     if (row >= rows) return;
 
     // Softmax
@@ -122,7 +122,7 @@ __global__ void softmax8_topk_norm_kernel
     const int topk
 )
 {
-    int row = blockIdx.y * WARPS + threadIdx.x;
+    int row = blockIdx.y * WARPSIZE + threadIdx.x;
     if (row >= rows) return;
 
     // Softmax
@@ -206,7 +206,7 @@ __global__ void softmax4_topk_norm_kernel
     const int topk
 )
 {
-    int row = blockIdx.y * WARPS + threadIdx.x;
+    int row = blockIdx.y * WARPSIZE + threadIdx.x;
     if (row >= rows) return;
 
     // Softmax
@@ -267,4 +267,98 @@ __global__ void softmax4_topk_norm_kernel
     logits_int2.x = l01.as_uint32;
     logits_int2.y = l23.as_uint32;
     *row_ptr = logits_int2;
+}
+
+__global__ void softmax128_topk_norm_kernel
+(
+    half* __restrict__ x,
+    const int rows,
+    const int topk
+)
+{
+    const int row = blockIdx.y * WARPSIZE + threadIdx.x;
+    if (row >= rows) return;
+
+    register float f[128];
+
+    int4* row_ptr = reinterpret_cast<int4*>(x + row * 128);
+
+    #pragma unroll
+    for (int v = 0; v < 16; ++v)          // 16 × 8 halfs = 128 halfs
+    {
+        int4 v4 = row_ptr[v];
+
+        half2_uint32 h0(v4.x), h1(v4.y), h2(v4.z), h3(v4.w);
+
+        const int base = v * 8;
+        f[base + 0] = __low2float (h0.as_half2);
+        f[base + 1] = __high2float(h0.as_half2);
+        f[base + 2] = __low2float (h1.as_half2);
+        f[base + 3] = __high2float(h1.as_half2);
+        f[base + 4] = __low2float (h2.as_half2);
+        f[base + 5] = __high2float(h2.as_half2);
+        f[base + 6] = __low2float (h3.as_half2);
+        f[base + 7] = __high2float(h3.as_half2);
+    }
+
+    float maxf = -FLT_MAX;
+    #pragma unroll
+    for (int i = 0; i < 128; ++i) maxf = fmaxf(maxf, f[i]);
+
+    float sum = 0.f;
+    #pragma unroll
+    for (int i = 0; i < 128; ++i)
+    {
+        float e = __expf(f[i] - maxf);
+        f[i] = e;
+        sum += e;
+    }
+
+    constexpr float epsilon = 1e-8f;
+    const float isum = 1.f / (sum + 128.0f * epsilon);
+
+    #pragma unroll
+    for (int i = 0; i < 128; ++i) f[i] = f[i] * isum + epsilon;
+
+    float remaining = 1.0f;
+    for (int drop = 0; drop < 128 - topk; ++drop)
+    {
+        float minv = 1.0f;
+        int mini = -1;
+        #pragma unroll
+        for (int j = 0; j < 128; ++j)
+        {
+            if (f[j] > 0.0f && f[j] < minv)
+            {
+                minv = f[j];
+                mini = j;
+            }
+        }
+        remaining -= f[mini];
+        f[mini] = 0.0f;
+    }
+
+    const float inv_remaining = 1.f / remaining;
+    #pragma unroll
+    for (int i = 0; i < 128; ++i) f[i] *= inv_remaining;
+
+    #pragma unroll
+    for (int v = 0; v < 16; ++v)
+    {
+        const int base = v * 8;
+
+        half2_uint32 h0, h1, h2, h3;
+        h0.as_half2 = __floats2half2_rn(f[base + 0], f[base + 1]);
+        h1.as_half2 = __floats2half2_rn(f[base + 2], f[base + 3]);
+        h2.as_half2 = __floats2half2_rn(f[base + 4], f[base + 5]);
+        h3.as_half2 = __floats2half2_rn(f[base + 6], f[base + 7]);
+
+        int4 v4;
+        v4.x = h0.as_uint32;
+        v4.y = h1.as_uint32;
+        v4.z = h2.as_uint32;
+        v4.w = h3.as_uint32;
+
+        row_ptr[v] = v4;
+    }
 }

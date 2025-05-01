@@ -324,9 +324,15 @@ void QMoEMLP::forward_
 //    half* lora_temp
 )
 {
-    if (num_experts != 4 && num_experts != 8 && num_experts != 16)
+    if (rows > MAX_Q_GEMM_WEIGHTS)
     {
-        printf(" ## num_experts must be 4, 8 or 16\n");
+        printf(" ## ropws > %i not implemented\n", MAX_Q_GEMM_WEIGHTS);
+        DBGI(rows);
+    }
+
+    if (num_experts != 4 && num_experts != 8 && num_experts != 16 && num_experts != 128)
+    {
+        printf(" ## num_experts must be 4, 8, 16 or 128\n");
         return;
     }
 
@@ -354,35 +360,32 @@ void QMoEMLP::forward_
                 &beta_,
                 temp_logits, num_experts);
 
-    // Compute softmax filter to and normalize top-k outputs
+    // Select activation kernel
 
-    dim3 blockDim, gridDim;
-    blockDim.x = WARPS;
-    blockDim.y = 1;
-    gridDim.x = 1;
-    gridDim.y = DIVIDE(rows, WARPS);
-    if (num_experts == 4)
-        softmax4_topk_norm_kernel<<<gridDim, blockDim, 0, stream>>>(temp_logits, rows, num_experts_per_token);
-    else if (num_experts == 8)
-        softmax8_topk_norm_kernel<<<gridDim, blockDim, 0, stream>>>(temp_logits, rows, num_experts_per_token);
-    else if (num_experts == 16)
-        softmax16_topk_norm_kernel<<<gridDim, blockDim, 0, stream>>>(temp_logits, rows, num_experts_per_token);
+    int intermediate_size = w1[0]->width;
+    fp_act_mul_kernel kernel = pick_act_mul_kernel(use_half2, true, act_gelu);
 
     // For small no. rows, execute all kernels but pass the routing weights. Rows with a weight of zero will skip dot
     // product accum and kernels launched with only zero-weights will exit prematurely.
 
-    if (rows <= MAX_Q_GEMM_WEIGHTS)
+    if (num_experts == 4 || num_experts == 8 || num_experts == 16)
     {
-        int intermediate_size = w1[0]->width;
-        fp_act_mul_kernel kernel = pick_act_mul_kernel(use_half2, true, act_gelu);
+        dim3 blockDim, gridDim;
+        blockDim.x = WARPSIZE;
+        blockDim.y = 1;
+        gridDim.x = 1;
+        gridDim.y = DIVIDE(rows, WARPSIZE);
+        if (num_experts == 4)
+            softmax4_topk_norm_kernel<<<gridDim, blockDim, 0, stream>>>(temp_logits, rows, num_experts_per_token);
+        else if (num_experts == 8)
+            softmax8_topk_norm_kernel<<<gridDim, blockDim, 0, stream>>>(temp_logits, rows, num_experts_per_token);
+        else if (num_experts == 16)
+            softmax16_topk_norm_kernel<<<gridDim, blockDim, 0, stream>>>(temp_logits, rows, num_experts_per_token);
 
         for (int i = 0; i < num_experts; i++)
         {
             gemm_half_q_half_cuda(stream, cublas_handle, temp_state, w1[i], temp_a, rows, intermediate_size, columns, true, temp_dq, true, temp_logits + i, num_experts, false);
             gemm_half_q_half_cuda(stream, cublas_handle, temp_state, w3[i], temp_b, rows, intermediate_size, columns, true, temp_dq, true, temp_logits + i, num_experts, false);
-
-//            apply_loras_cuda(cublas_handle, w1_lora[i], loras, w1[i], temp_state, temp_a, lora_temp, rows);
-//            apply_loras_cuda(cublas_handle, w3_lora[i], loras, w3[i], temp_state, temp_b, lora_temp, rows);
 
             blockDim.x = THREADS_X;
             blockDim.y = THREADS_Y;
@@ -391,17 +394,43 @@ void QMoEMLP::forward_
             kernel<<<gridDim, blockDim, 0, stream>>>(temp_a, temp_b, rows, intermediate_size, temp_logits + i, num_experts);
 
             gemm_half_q_half_cuda(stream, cublas_handle, temp_a, w2[i], x, rows, columns, intermediate_size, false, temp_dq, true, temp_logits + i, num_experts, true);
-
-//            apply_loras_cuda(cublas_handle, w2_lora[i], loras, w2[i], temp_a, x, lora_temp, rows);
         }
-    }
+     }
 
-    // Gather larger number of rows in separate batches according to which experts they trigger, evaluate each MLP
-    // only on the affected rows and scale by routing weights while adding back directly onto the residual hidden state
+     // For very large number of experts (Qwen3 etc.) copy to CPU, synchronize and only launch top K experts. This is
+     // not optimal but the kernel launch overhead is very severe otherwise. Really needs a graph
 
-    else
+    else if (num_experts == 128)
     {
-        printf(" ## ropws > %i not implemented\n", MAX_Q_GEMM_WEIGHTS);
-        DBGI(rows);
+        dim3 blockDim, gridDim;
+        blockDim.x = WARPSIZE;
+        blockDim.y = 1;
+        gridDim.x = 1;
+        gridDim.y = DIVIDE(rows, WARPSIZE);
+        softmax128_topk_norm_kernel<<<gridDim, blockDim, 0, stream>>>(temp_logits, rows, num_experts_per_token);
+
+        half* h_logits;
+        h_logits = (half*) malloc(128 * sizeof(half));
+        cudaMemcpyAsync(h_logits, temp_logits, 128 * sizeof(half), cudaMemcpyDeviceToHost, stream);
+        cudaStreamSynchronize(stream);
+
+        for (int i = 0; i < num_experts; i++)
+        {
+            uint16_t w = __half_as_ushort(h_logits[i]);
+            if (!w) continue;
+
+            gemm_half_q_half_cuda(stream, cublas_handle, temp_state, w1[i], temp_a, rows, intermediate_size, columns, true, temp_dq, true, temp_logits + i, num_experts, false);
+            gemm_half_q_half_cuda(stream, cublas_handle, temp_state, w3[i], temp_b, rows, intermediate_size, columns, true, temp_dq, true, temp_logits + i, num_experts, false);
+
+            blockDim.x = THREADS_X;
+            blockDim.y = THREADS_Y;
+            gridDim.x = DIVIDE(intermediate_size, THREADS_X) / (use_half2 ? 2 : 1);
+            gridDim.y = DIVIDE(rows, THREADS_Y);
+            kernel<<<gridDim, blockDim, 0, stream>>>(temp_a, temp_b, rows, intermediate_size, temp_logits + i, num_experts);
+
+            gemm_half_q_half_cuda(stream, cublas_handle, temp_a, w2[i], x, rows, columns, intermediate_size, false, temp_dq, true, temp_logits + i, num_experts, true);
+        }
+
+        free(h_logits);
     }
 }

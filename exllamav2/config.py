@@ -319,8 +319,11 @@ class ExLlamaV2Config:
             default_intermediate_size,
             opt_subkey = "text_config",
         )
-        self.num_experts = read(read_config, int, ["num_local_experts", "ffn_config->moe_num_experts"], None)
+        self.num_experts = read(read_config, int, ["num_local_experts", "ffn_config->moe_num_experts", "num_experts"], None)
         self.num_experts_per_token = read(read_config, int,["num_experts_per_tok", "ffn_config->moe_top_k"], None)
+
+        if self.arch.lm.is_moe:
+            self.intermediate_size = read(read_config, int, ["moe_intermediate_size"], self.intermediate_size)
 
         # Logit/embedding/residual scale
 
