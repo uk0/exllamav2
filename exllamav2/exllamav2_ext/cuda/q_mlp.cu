@@ -416,7 +416,7 @@ void QMoEMLP::forward_
 
         for (int i = 0; i < num_experts; i++)
         {
-            uint16_t w = __half_as_ushort(h_logits[i]);
+            uint16_t w = *reinterpret_cast<const uint16_t*>(&h_logits[i]);
             if (!w) continue;
 
             gemm_half_q_half_cuda(stream, cublas_handle, temp_state, w1[i], temp_a, rows, intermediate_size, columns, true, temp_dq, true, temp_logits + i, num_experts, false);
