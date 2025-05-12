@@ -279,7 +279,11 @@ __global__ void softmax128_topk_norm_kernel
     const int row = blockIdx.y * WARPSIZE + threadIdx.x;
     if (row >= rows) return;
 
+    #if defined(USE_ROCM)
+    float f[128];
+    #else
     register float f[128];
+    #endif
 
     int4* row_ptr = reinterpret_cast<int4*>(x + row * 128);
 
