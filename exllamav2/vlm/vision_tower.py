@@ -42,6 +42,8 @@ class ExLlamaV2VisionTower(ExLlamaV2):
         km = self.archparams.keys
         self.modules = []
 
+        self.tp_context = None
+
         # Preprocessor
 
         if cfg.vision_model_type == "pixtral":

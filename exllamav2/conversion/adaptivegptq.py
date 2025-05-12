@@ -229,7 +229,10 @@ class AdaptiveGPTQ:
 
         with torch.inference_mode():
 
-            self.hessian /= self.num_batches
+            if self.hessian is None or self.num_batches == 0:
+                self.hessian = torch.eye(self.rows, device = self.device, dtype = torch.float)
+            else:
+                self.hessian /= self.num_batches
             diagonal = torch.diag(self.hessian)
 
             # Prepare weights
