@@ -1352,27 +1352,34 @@ class ExLlamaV2DynamicGenerator:
         if not self.paged:
             return
 
+        # Defragment once job queue is empty after touching all the cache pages
         if self.access_serial < self.last_defrag_serial + self.max_pages:
             return
         self.last_defrag_serial = self.access_serial
 
         assert not self.referenced_pages
 
-        @dataclass
         class CacheNode:
             page: CachePage | None
-            parent: CachePage | None = None
-            children: set[CacheNode] = None
-            left_page: int = len(self.all_pages)
+            parent: CacheNode | None
+            children: set[CacheNode] | None
+            children_sorted: deque[CacheNode] | None
+            left_page: int = 0
             def __init__(self, page_):
                 self.page = page_
-                if self.page:
-                    self.left_page = page_.access_serial
+                self.parent = None
                 self.children = set()
+                self.children_sorted = None
+                self.left_page = page_.access_serial if page_ else 0
             def __hash__(self):
                 return id(self)
             def __eq__(self, other):
                 return self is other
+            def presort(self, recursive = True):
+                self.children_sorted = deque(sorted(self.children, key = lambda x: x.left_page))
+                if recursive:
+                    for c in self.children:
+                        c.presort()
 
         # Build a tree of the current cache
 
@@ -1393,27 +1400,49 @@ class ExLlamaV2DynamicGenerator:
 
         # Remove oldest branch until tree is empty
 
+        root_node.presort()
+        shift_counts = {}
+
         new_page_index = 0
         while root_node.children:
-            oldest = min(root_node.children, key = lambda x: x.left_page)
+            oldest = root_node.children_sorted[0]
             node = oldest
             skipped_nodes = set()
             while True:
                 node.page.new_page_index = new_page_index
+                shift = node.page.new_page_index - node.page.page_index
+                if shift in shift_counts:
+                    shift_counts[shift] += 1
+                else:
+                    shift_counts[shift] = 1
                 new_page_index += 1
                 if not node.children: break
-                next_node = min(node.children, key = lambda x: x.left_page)
-                skipped_nodes |= set([n for n in node.children if n != next_node])
+                next_node = node.children_sorted[0]
+                if len(node.children_sorted) > 1:
+                    skipped_nodes |= set([n for n in node.children if n != next_node])
                 node = next_node
             root_node.children.remove(oldest)
+            root_node.children_sorted.popleft()
             root_node.children |= skipped_nodes
+            if len(skipped_nodes):
+                root_node.presort(False)
+
+        # Adjust overall shift to minimize page copies
+
+        shift_adjust = max(shift_counts, key = shift_counts.get)
 
         # Order of operations
 
         defrag_map = {}
         for page in self.all_pages:
+            page.new_page_index = (page.new_page_index - shift_adjust + self.max_pages) % self.max_pages
             if page.page_index != page.new_page_index:
                 defrag_map[page.new_page_index] = page.page_index
+
+        # Don't bother if less than 10% of cache is fragmented
+
+        if len(defrag_map) <= self.max_pages // 10:
+            return
 
         # Shuffle pages
 
@@ -1435,12 +1464,11 @@ class ExLlamaV2DynamicGenerator:
                 source = defrag_map[target]
                 del defrag_map[target]
 
-            rotation = [r * self.page_size for r in rotation]
+            rotation = torch.tensor(rotation, dtype = torch.int)
             for cache, buffer in zip(cache_tensors, defrag_buffers):
-                buffer[:, :, :, :].copy_(cache[:, rotation[0] : rotation[0] + self.page_size, :, :])
-                for a, b in pairwise(rotation):
-                    cache[:, a : a + self.page_size, :, :].copy_(cache[:, b : b + self.page_size, :, :])
-                cache[:, rotation[-1] : rotation[-1] + self.page_size, :, :].copy_(buffer[:, :, :, :])
+                rotation = rotation.to(cache.device)
+                cache = cache.view(cache.shape[1] // self.page_size, -1)
+                ext_c.cache_rotate(cache, rotation, buffer)
 
         # Update page table
 
