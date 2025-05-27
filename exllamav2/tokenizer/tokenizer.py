@@ -5,7 +5,6 @@ import torch
 import os, json, re
 from exllamav2.tokenizer import (
     ExLlamaV2TokenizerBase,
-    ExLlamaV2TokenizerSPM,
     ExLlamaV2TokenizerHF
 )
 import threading
@@ -93,13 +92,12 @@ class ExLlamaV2Tokenizer:
             Defer initialization of some data structures to speed up loading
 
         :param force_json:
-            No effect from v0.2.3. tokenizer.json is now preferred over tokenizer.model by default.
-            If True and no tokenizer.json is present in the model directory, will emit a warning before
-            falling back to SPM
+            No effect from v0.2.3. tokenizer.json is now preferred over tokenizer.model by default. From v0.3.1
+            tokenizer.model is not used at all
 
         :param force_spm:
-            Use only tokenizer.model (SentencePiece) even if tokenizer.model (HF Tokenizers)
-            is available
+            Deprecated, Sentencepiece is abandoned and no longer supported. All SPM tokenizers should
+            still load correctly via the Tokenizers library
         """
 
         self.config = config
@@ -123,17 +121,13 @@ class ExLlamaV2Tokenizer:
 
         # Detect tokenizer model type and initialize
 
-        path_spm = os.path.join(self.config.model_dir, "tokenizer.model")
+        assert not force_spm, "tokenizer.py: force_spm is deprecated. Sentencepiece is no longer supported."
         path_hf = os.path.join(self.config.model_dir, "tokenizer.json")
 
-        if os.path.exists(path_hf) and not force_spm:
-            self.tokenizer_model = ExLlamaV2TokenizerHF(path_hf)
-        elif os.path.exists(path_spm):
-            if force_json:
-                print(" !! Warning: Tokenizer loading with force_json = True but no tokenizer.json found, falling back to tokenizer.model")
-            self.tokenizer_model = ExLlamaV2TokenizerSPM(path_spm)
-        else:
+        if not os.path.exists(path_hf):
             raise FileNotFoundError("No supported tokenizer found.")
+
+        self.tokenizer_model = ExLlamaV2TokenizerHF(path_hf)
 
         # Attempt to load added tokens from tokenizer.json
 
@@ -141,15 +135,17 @@ class ExLlamaV2Tokenizer:
         self.unspecial_piece_to_id = {}
 
         tokenizer_json_path = os.path.join(self.config.model_dir, "tokenizer.json")
-        if os.path.exists(tokenizer_json_path):
-            with open(tokenizer_json_path, encoding = "utf8") as f:
-                tokenizer_json = json.load(f)
-                if "added_tokens" in tokenizer_json:
-                    for v in tokenizer_json["added_tokens"]:
-                        if v["special"]:
-                            self.extended_piece_to_id[v["content"]] = v["id"]
-                        else:
-                            self.unspecial_piece_to_id[v["content"]] = v["id"]
+        if not os.path.exists(tokenizer_json_path):
+            raise ValueError(" ## Model does not include a tokenizer.json file. SentencePiece-only tokenizers are no longer supported")
+
+        with open(tokenizer_json_path, encoding = "utf8") as f:
+            tokenizer_json = json.load(f)
+            if "added_tokens" in tokenizer_json:
+                for v in tokenizer_json["added_tokens"]:
+                    if v["special"]:
+                        self.extended_piece_to_id[v["content"]] = v["id"]
+                    else:
+                        self.unspecial_piece_to_id[v["content"]] = v["id"]
 
         # Attempt to load tokenizer_config.json
 

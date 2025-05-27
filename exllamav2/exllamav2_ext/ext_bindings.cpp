@@ -22,6 +22,8 @@
 #include "ext_element.h"
 #include "ext_tp.h"
 
+#include "cuda/cache.cuh"
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
     // quant
@@ -95,6 +97,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
     m.def("count_match", &count_match, "count_match");
 //    m.def("array_fp16_to_fp8_ref", &array_fp16_to_fp8_ref, "array_fp16_to_fp8_ref");
 //    m.def("array_fp8_to_fp16_ref", &array_fp8_to_fp16_ref, "array_fp8_to_fp16_ref");
+    m.def("cache_rotate", &cache_rotate, "cache_rotate");
 
     // hadamard
 

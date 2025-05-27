@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <cstdio>
 
+#include <ATen/Tensor.h>
+
 void array_fp16_to_fp8_cuda
 (
     cudaStream_t stream,
@@ -99,5 +101,12 @@ void array_q_to_fp16_kv_paged_cuda
 
 // void array_fp16_to_fp8_ref_cuda(const half* pIn, unsigned char *pOut, int size);
 // void array_fp8_to_fp16_ref_cuda(const unsigned char* pIn, half* pOut, int size);
+
+void cache_rotate
+(
+    const at::Tensor& cache,
+    const at::Tensor& order,
+    const at::Tensor& temp
+);
 
 #endif
