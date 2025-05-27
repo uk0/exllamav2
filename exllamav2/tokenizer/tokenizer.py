@@ -135,15 +135,17 @@ class ExLlamaV2Tokenizer:
         self.unspecial_piece_to_id = {}
 
         tokenizer_json_path = os.path.join(self.config.model_dir, "tokenizer.json")
-        if os.path.exists(tokenizer_json_path):
-            with open(tokenizer_json_path, encoding = "utf8") as f:
-                tokenizer_json = json.load(f)
-                if "added_tokens" in tokenizer_json:
-                    for v in tokenizer_json["added_tokens"]:
-                        if v["special"]:
-                            self.extended_piece_to_id[v["content"]] = v["id"]
-                        else:
-                            self.unspecial_piece_to_id[v["content"]] = v["id"]
+        if not os.path.exists(tokenizer_json_path):
+            raise ValueError(" ## Model does not include a tokenizer.json file. SentencePiece-only tokenizers are no longer supported")
+
+        with open(tokenizer_json_path, encoding = "utf8") as f:
+            tokenizer_json = json.load(f)
+            if "added_tokens" in tokenizer_json:
+                for v in tokenizer_json["added_tokens"]:
+                    if v["special"]:
+                        self.extended_piece_to_id[v["content"]] = v["id"]
+                    else:
+                        self.unspecial_piece_to_id[v["content"]] = v["id"]
 
         # Attempt to load tokenizer_config.json
 
